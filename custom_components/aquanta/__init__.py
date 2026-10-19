@@ -6,7 +6,7 @@ https://github.com/bmcclure/ha-aquanta
 
 from __future__ import annotations
 
-from aquanta import Aquanta
+from .api import Aquanta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
-from aquanta import Aquanta
+from .api import Aquanta
 
 import voluptuous as vol
 
