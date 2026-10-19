@@ -38,7 +38,7 @@ OPERATION_LIST = [STATE_ECO, MODE_THERMOSTAT, MODE_TIMER, MODE_TOU, STATE_OFF]
 # [OBSERVED] setPoint and water.temperature are stored in degC (confirmed from app source:
 # the app does Ju(setPoint,"degC").toNumber(tempUnits) on read, and the inverse on write).
 # So temperature_unit CELSIUS is correct and set_temperature sends degC as-is.
-SETPOINT_MIN = 10   # app setPointMin = 10 degC
+SETPOINT_MIN = 10  # app setPointMin = 10 degC
 SETPOINT_MAX = 110  # app setPointMax = 110 degC
 
 

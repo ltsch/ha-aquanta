@@ -42,13 +42,15 @@ ENTITY_DESCRIPTIONS = (
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             icon="mdi:thermometer-water",
         ),
-        "native_value": lambda entity: entity.coordinator.data["devices"][
-            entity.aquanta_id
-        ]["advanced"]["setPoint"]
-        if entity.coordinator.data["devices"][entity.aquanta_id]["advanced"][
-            "thermostatEnabled"
-        ]
-        else None,
+        "native_value": lambda entity: (
+            entity.coordinator.data["devices"][entity.aquanta_id]["advanced"][
+                "setPoint"
+            ]
+            if entity.coordinator.data["devices"][entity.aquanta_id]["advanced"][
+                "thermostatEnabled"
+            ]
+            else None
+        ),
         "suggested_precision": 0,
         "options": None,
     },

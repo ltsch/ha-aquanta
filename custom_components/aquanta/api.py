@@ -23,13 +23,17 @@ from typing import Any
 
 import requests
 
-FIREBASE_WEB_API_KEY = "AIzaSyBHWHB8Org9BWCH-YFzis-8oEbMaKmI2Tw"  # [OBSERVED] public client key
-IDENTITY_TOOLKIT = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
+FIREBASE_WEB_API_KEY = (
+    "AIzaSyBHWHB8Org9BWCH-YFzis-8oEbMaKmI2Tw"  # [OBSERVED] public client key
+)
+IDENTITY_TOOLKIT = (
+    "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
+)
 SECURE_TOKEN = "https://securetoken.googleapis.com/v1/token"
 API_ROOT = "https://api.aquanta.io"
 API_V2 = API_ROOT + "/v2"
 
-SETPOINT_MIN = 10   # [OBSERVED] app setPointMin=10 degC
+SETPOINT_MIN = 10  # [OBSERVED] app setPointMin=10 degC
 SETPOINT_MAX = 110  # [OBSERVED] app setPointMax=110 degC
 
 # [OBSERVED] mutually-exclusive mode flags in `advanced`
@@ -51,12 +55,14 @@ class AquantaHelper:
         self.headers: dict[str, str] = {}
 
     def _do(self, method: str, url: str, **kw):
-        resp = self._session.request(method, url, timeout=self._timeout,
-                                     headers=self.headers, **kw)
+        resp = self._session.request(
+            method, url, timeout=self._timeout, headers=self.headers, **kw
+        )
         if resp.status_code == 401:
             self._reauth()
-            resp = self._session.request(method, url, timeout=self._timeout,
-                                         headers=self.headers, **kw)
+            resp = self._session.request(
+                method, url, timeout=self._timeout, headers=self.headers, **kw
+            )
         return resp
 
     def get(self, path: str, params: dict | None = None):
@@ -105,9 +111,16 @@ class Aquanta:
     # --- auth ---
 
     def _firebase_sign_in(self) -> None:
-        r = self._session.post(IDENTITY_TOOLKIT, params={"key": FIREBASE_WEB_API_KEY},
-                               json={"email": self._email, "password": self._password,
-                                     "returnSecureToken": True}, timeout=self._timeout)
+        r = self._session.post(
+            IDENTITY_TOOLKIT,
+            params={"key": FIREBASE_WEB_API_KEY},
+            json={
+                "email": self._email,
+                "password": self._password,
+                "returnSecureToken": True,
+            },
+            timeout=self._timeout,
+        )
         if not r.ok:
             raise RuntimeError("Aquanta: Firebase sign-in failed")
         d = r.json()
@@ -118,9 +131,12 @@ class Aquanta:
     def _firebase_refresh(self):
         if not self._refresh_token:
             return self._firebase_sign_in()
-        r = self._session.post(SECURE_TOKEN, params={"key": FIREBASE_WEB_API_KEY},
-                               data={"grant_type": "refresh_token",
-                                     "refresh_token": self._refresh_token}, timeout=self._timeout)
+        r = self._session.post(
+            SECURE_TOKEN,
+            params={"key": FIREBASE_WEB_API_KEY},
+            data={"grant_type": "refresh_token", "refresh_token": self._refresh_token},
+            timeout=self._timeout,
+        )
         if not r.ok:
             return self._firebase_sign_in()
         d = r.json()
@@ -129,7 +145,9 @@ class Aquanta:
         return d["id_token"]
 
     def _exchange_key(self, id_token: str) -> None:
-        r = self._session.get(API_ROOT + "/auth", params={"idtoken": id_token}, timeout=self._timeout)
+        r = self._session.get(
+            API_ROOT + "/auth", params={"idtoken": id_token}, timeout=self._timeout
+        )
         if not r.ok:
             raise RuntimeError("Aquanta: /auth token exchange failed")
         self._helper.headers = {"Authorization": f"Bearer {r.json()['apiKey']}"}
@@ -146,7 +164,9 @@ class Aquanta:
     def devices(self):
         if self._devices is None:
             data = self._helper.get("/devices", params={"inlineAddress": "true"})
-            self._devices = {d["id"]: AquantaDevice(self._helper, d["id"]) for d in (data or [])}
+            self._devices = {
+                d["id"]: AquantaDevice(self._helper, d["id"]) for d in (data or [])
+            }
         return self._devices
 
     def __len__(self):
@@ -209,14 +229,18 @@ class AquantaDevice:
     # advanced / setpoint / mode [OBSERVED] — PATCH /v2/devices/advanced (batch), wire-confirmed
     def patch_advanced(self, fields: dict[str, Any]):
         """[OBSERVED] body: [{id, patch:{op:"replace", path:<field>, value:<v>}}].
-        Endpoint and body shape confirmed live (setPoint write returned 2xx and persisted)."""
-        body = [{"id": self._id, "patch": {"op": "replace", "path": k, "value": v}}
-                for k, v in fields.items()]
+        Endpoint and body shape confirmed live (setPoint write returned 2xx and persisted).
+        """
+        body = [
+            {"id": self._id, "patch": {"op": "replace", "path": k, "value": v}}
+            for k, v in fields.items()
+        ]
         return self._helper.patch("/devices/advanced", body)
 
     def set_setpoint(self, value: int):
         """Set thermostat target, in degC. Endpoint [OBSERVED]/wire-confirmed; unit is degC
-        per the app's own conversion (Ju(...,"degC")). Range is the app's 10-110 degC."""
+        per the app's own conversion (Ju(...,"degC")). Range is the app's 10-110 degC.
+        """
         v = int(round(value))
         if not (SETPOINT_MIN <= v <= SETPOINT_MAX):
             raise ValueError(f"setpoint {v} out of range {SETPOINT_MIN}-{SETPOINT_MAX}")
@@ -225,7 +249,8 @@ class AquantaDevice:
     def set_mode(self, mode: str):
         """Select one mode ('thermostat'|'timer'|'tou'|'intelligence') or 'off'.
         Uses the same PATCH /v2/devices/advanced path confirmed by the setPoint write;
-        the per-flag mode semantics are reconstructed from the app (setThermostatEnabled)."""
+        the per-flag mode semantics are reconstructed from the app (setThermostatEnabled).
+        """
         if mode == "off":
             return self.patch_advanced({"controlEnabled": False})
         if mode not in MODE_FIELDS:

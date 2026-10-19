@@ -17,7 +17,7 @@ Component to integrate with [Aquanta Smart Water Heater Controllers][aquanta] th
 
 | Platform        | Description                                |
 | --------------- | ------------------------------------------ |
-| `water_heater`  | Manage one or more Aquanta devices.        |
+| `water_heater`  | Set temperature, operation mode, and Away mode.        |
 | `sensor`        | Additional data about each Aquanta device  |
 | `binary_sensor` | On/Off values for various Aquanta settings |
 | `switch`        | Supports toggling Away and Boost modes     |
