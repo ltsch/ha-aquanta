@@ -11,17 +11,26 @@ from homeassistant import config_entries
 from homeassistant import data_entry_flow
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import selector
 
-from .const import DOMAIN, LOGGER
+from .const import CONF_AWAY_DAYS, DEFAULT_AWAY_DAYS, DOMAIN, LOGGER
 
 
 class AquantaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Aquanta."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> "AquantaOptionsFlowHandler":
+        """Get the options flow for this handler."""
+        return AquantaOptionsFlowHandler(config_entry)
 
     async def user_data_schema(self, user_input: dict[str, Any]):
         """Define a shared schema for user credentials."""
@@ -103,6 +112,35 @@ class AquantaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             raise AquantaInvalidAuth from RuntimeError
 
         return {"title": data[CONF_USERNAME], "data": data}
+
+
+class AquantaOptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle Aquanta options."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self._config_entry = config_entry
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None):
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        current = self._config_entry.options.get(CONF_AWAY_DAYS, DEFAULT_AWAY_DAYS)
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_AWAY_DAYS, default=current): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0,
+                        max=3650,
+                        step=1,
+                        mode=selector.NumberSelectorMode.BOX,
+                        unit_of_measurement="days",
+                    )
+                )
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)
 
 
 class AquantaCannotConnect(HomeAssistantError):

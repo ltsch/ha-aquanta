@@ -17,5 +17,14 @@
                 }
             }
         }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "away_days": "Away duration in days (0 = until turned off)"
+                }
+            }
+        }
     }
 }

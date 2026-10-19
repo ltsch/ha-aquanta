@@ -54,6 +54,10 @@ All configuration is done in the UI.
 
 Your Aquanta devices should now show up in Home Assistant and the device data will be updated from the cloud every 60s by default.
 
+### Options
+
+Use "Configure" on the integration to set the **Away duration** (in days) used when Away mode is turned on. Set it to `0` to keep Away on until it is turned off again.
+
 ## Contributions are welcome!
 
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)

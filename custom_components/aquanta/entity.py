@@ -9,7 +9,15 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
 )
 
-from .const import ATTRIBUTION, DOMAIN, MODEL, NAME
+from .const import (
+    ATTRIBUTION,
+    CONF_AWAY_DAYS,
+    DEFAULT_AWAY_DAYS,
+    DOMAIN,
+    INDEFINITE_AWAY_DAYS,
+    MODEL,
+    NAME,
+)
 from .coordinator import AquantaCoordinator
 
 
@@ -73,9 +81,24 @@ class AquantaEntity(CoordinatorEntity):
         await self.coordinator.async_request_refresh()
 
     def get_away_schedule(self):
-        """Get a schedule in the correct format for enabling Away mode."""
+        """Get a schedule in the correct format for enabling Away mode.
+
+        Duration comes from the integration options (CONF_AWAY_DAYS). 0 means
+        "until turned off" and uses a far-future end (INDEFINITE_AWAY_DAYS).
+        """
+        days = DEFAULT_AWAY_DAYS
+        entry = getattr(self.coordinator, "config_entry", None)
+        if entry is not None:
+            days = entry.options.get(CONF_AWAY_DAYS, DEFAULT_AWAY_DAYS)
+        try:
+            days = int(days)
+        except (TypeError, ValueError):
+            days = DEFAULT_AWAY_DAYS
+        if days <= 0:
+            days = INDEFINITE_AWAY_DAYS
+
         start = datetime.now(timezone.utc)
-        end = start + timedelta(days=30)
+        end = start + timedelta(days=days)
         time_format = "%Y-%m-%dT%H:%M:%S.000Z"
 
         return {
