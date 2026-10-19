@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from homeassistant.components.water_heater import (
+    ATTR_OPERATION_MODE,
     STATE_ECO,
-    STATE_PERFORMANCE,
     STATE_OFF,
     WaterHeaterEntity,
     WaterHeaterEntityFeature,
@@ -12,6 +12,7 @@ from homeassistant.components.water_heater import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import AquantaEntity
@@ -71,6 +72,7 @@ class AquantaWaterHeater(AquantaEntity, WaterHeaterEntity):
     _attr_operation_list = OPERATION_LIST
     _attr_min_temp = SETPOINT_MIN
     _attr_max_temp = SETPOINT_MAX
+    _attr_target_temperature_step = 1
     _attr_name = "Water heater"
 
     def __init__(self, coordinator, aquanta_id) -> None:
@@ -81,17 +83,21 @@ class AquantaWaterHeater(AquantaEntity, WaterHeaterEntity):
         LOGGER.debug("Created water heater with unique ID %s", self._attr_unique_id)
 
     def _advanced(self):
-        return self.coordinator.data["devices"][self.aquanta_id]["advanced"]
+        device = self.coordinator.data["devices"].get(self.aquanta_id) or {}
+        return device.get("advanced") or {}
 
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        return self.coordinator.data["devices"][self.aquanta_id]["water"]["temperature"]
+        device = self.coordinator.data["devices"].get(self.aquanta_id) or {}
+        return (device.get("water") or {}).get("temperature")
 
     @property
     def current_operation(self):
         """Return the current base operation mode from the `advanced` flags."""
         adv = self._advanced()
+        if not adv:
+            return None  # no data yet -> unknown, not "off"
         if not adv.get("controlEnabled"):
             return STATE_OFF
         if adv.get("intelEnabled"):
@@ -116,19 +122,30 @@ class AquantaWaterHeater(AquantaEntity, WaterHeaterEntity):
         """Set a new base operation mode."""
         mode = OPERATION_TO_AQUANTA.get(operation_mode)
         if mode is None:
-            raise ValueError(f"Unsupported operation mode: {operation_mode}")
-        await self.hass.async_add_executor_job(
-            self._api[self.aquanta_id].set_mode, mode
-        )
+            raise ServiceValidationError(
+                f"Unsupported operation mode: {operation_mode}"
+            )
+        try:
+            await self.hass.async_add_executor_job(
+                self._api[self.aquanta_id].set_mode, mode
+            )
+        except RuntimeError as err:
+            raise HomeAssistantError(f"Failed to set operation mode: {err}") from err
         await self.coordinator.async_request_refresh()
 
     async def async_set_temperature(self, **kwargs) -> None:
-        """Set the thermostat target temperature (degC). Endpoint wire-confirmed; unit
-        confirmed degC from app source — see api.py."""
+        """Set the thermostat target temperature (degC; confirmed from app source)."""
+        if (operation_mode := kwargs.get(ATTR_OPERATION_MODE)) is not None:
+            await self.async_set_operation_mode(operation_mode)
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             return
-        await self.hass.async_add_executor_job(
-            self._api[self.aquanta_id].set_setpoint, int(round(temperature))
-        )
+        try:
+            await self.hass.async_add_executor_job(
+                self._api[self.aquanta_id].set_setpoint, int(round(temperature))
+            )
+        except ValueError as err:
+            raise ServiceValidationError(str(err)) from err
+        except RuntimeError as err:
+            raise HomeAssistantError(f"Failed to set temperature: {err}") from err
         await self.coordinator.async_request_refresh()
